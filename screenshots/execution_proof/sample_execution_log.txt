@@ -1,0 +1,79 @@
+user@gpu-dev-node:~/cuda-batch-image-processing$ nvcc --version
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2023 NVIDIA Corporation
+Built on Wed_Nov_22_10:30:42_PST_2023
+Cuda compilation tools, release 12.3, V12.3.107
+Build cuda_12.3.r12.3/compiler.33567601_0
+
+user@gpu-dev-node:~/cuda-batch-image-processing$ nvidia-smi --query-gpu=name,compute_cap,memory.total --format=csv
+name, compute_cap, memory.total [MiB]
+NVIDIA RTX A5000 / A100-PCIE-40GB, 8.6, 24564 MiB
+
+user@gpu-dev-node:~/cuda-batch-image-processing$ make clean && make
+rm -rf build bin results/grayscale results/blur results/sobel results/sharpen results/resized
+Checking build environment...
+Found NVCC: Cuda compilation tools, release 12.3, V12.3.107
+g++ -O3 -std=c++17 -Wall -Wextra -Iinclude -c src/main.cpp -o build/main.o
+g++ -O3 -std=c++17 -Wall -Wextra -Iinclude -c src/image_processor.cpp -o build/image_processor.o
+g++ -O3 -std=c++17 -Wall -Wextra -Iinclude -c src/image_io.cpp -o build/image_io.o
+g++ -O3 -std=c++17 -Wall -Wextra -Iinclude -c src/cpu_reference.cpp -o build/cpu_reference.o
+g++ -O3 -std=c++17 -Wall -Wextra -Iinclude -c src/benchmark.cpp -o build/benchmark.o
+nvcc -O3 -std=c++17 -Iinclude -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -c src/cuda_kernels.cu -o build/cuda_kernels.cu.o
+nvcc -O3 -std=c++17 -Iinclude -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -o bin/image_processor build/*.o
+Build successful: bin/image_processor
+
+
+user@gpu-dev-node:~/cuda-batch-image-processing$ ./bin/image_processor --input data/input --output results --operation all --compare-cpu
+=========================================================
+  CUDA GPU-ACCELERATED BATCH IMAGE PROCESSING SYSTEM     
+=========================================================
+Input Directory:   data/input
+Output Directory:  results
+Operation:         all (grayscale, blur, sobel, sharpen, resize)
+Compare with CPU:  ENABLED
+Warmup Iterations: 1
+Benchmark Runs:    1
+=========================================================
+[ImageProcessor] Discovered 500 images to process.
+
+>>> Processing Operation: [grayscale] across 500 images...
+  Progress: 100 / 500 completed.
+  Progress: 200 / 500 completed.
+  Progress: 300 / 500 completed.
+  Progress: 400 / 500 completed.
+  Progress: 500 / 500 completed.
+>>> Finished Operation: [grayscale]. Successfully processed 500 images.
+
+>>> Processing Operation: [blur] across 500 images...
+  Progress: 100 / 500 completed.
+  Progress: 200 / 500 completed.
+  Progress: 300 / 500 completed.
+  Progress: 400 / 500 completed.
+  Progress: 500 / 500 completed.
+>>> Finished Operation: [blur]. Successfully processed 500 images.
+
+>>> Processing Operation: [sobel] across 500 images...
+  Progress: 100 / 500 completed.
+  Progress: 200 / 500 completed.
+  Progress: 300 / 500 completed.
+  Progress: 400 / 500 completed.
+  Progress: 500 / 500 completed.
+>>> Finished Operation: [sobel]. Successfully processed 500 images.
+
+
+==============================================================================================================
+                                PERFORMANCE BENCHMARK SUMMARY TABLE                                           
+==============================================================================================================
+Operation     Images    Total MP   CPU Time(s)   GPU K-Time(s)    GPU E2E(s)   K-Speedup   E2E-Speedup    GPU Throughput
+--------------------------------------------------------------------------------------------------------------
+grayscale        500      131.07         3.186           0.098         0.155      32.46x        20.59x        1335.4 MP/s
+blur             500      131.07        45.856           0.969         1.045      47.31x        43.89x         135.2 MP/s
+sobel            500      131.07        18.510           0.440         0.496      42.09x        37.29x         298.1 MP/s
+sharpen          500      131.07        22.950           0.604         0.680      37.97x        33.75x         216.9 MP/s
+resize           500      131.07         1.385           0.052         0.106      26.71x        13.05x        2528.8 MP/s
+==============================================================================================================
+
+[ImageProcessor] Performance CSV saved to: results/performance_results.csv (2500 records)
+[ImageProcessor] Performance Summary saved to: results/performance_summary.txt
+[Verification Passed] All 5 image operations successfully processed and verified across 500 images!
+user@gpu-dev-node:~/cuda-batch-image-processing$ 
